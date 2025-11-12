@@ -1,12 +1,14 @@
+library(sf)
 library(stringr)
 library(zonebuilder)
 library(tmap)
 library(raster)
 library(exactextractr)
 library(tmaptools)
+library(dplyr)
 
-# download gpkg from https://communitiesopendata-communities.hub.arcgis.com/datasets/4da63019f25546aa92a922a5ea682950_0/explore?location=52.533125%2C-2.489482%2C7.17
-ind_dep <- st_read("LSOA_IMD2025_WGS84_-4854136717238973930.gpkg") |> 
+# download LSOA gpkg from https://communitiesopendata-communities.hub.arcgis.com/datasets/4da63019f25546aa92a922a5ea682950_0/explore?location=52.533125%2C-2.489482%2C7.17
+ind_dep <- st_read("dat/LSOA_IMD2025_WGS84_-4854136717238973930.gpkg") |> 
   st_transform(4326)
 
 # pick out cities interested in
@@ -14,6 +16,9 @@ cities <- c("Manchester", "Bristol", "Oxford", "Sheffield")
 
 # list for the clock board polygons to be added
 clocks <- list()
+city_clocks <- list()
+city_polys <- list()
+city_grids <- list()
 for (c in cities){
   
   # use tmap tools function to get coords of city centre
@@ -24,13 +29,30 @@ for (c in cities){
   
   ## draw the zones based on centre point. zb_zone automatically gets the boundary box of the city from tmaptools
   clock_zones <- zb_zone(cc)
+  cc_buff <- st_union(clock_zones) |>
+    #st_buffer(500) |> 
+    st_transform(3857) |> 
+    st_as_sf()
+  #bg <- basemaps::basemap_raster(ext=clock_zones, map_service = "carto", map_type = "light")
+  bg <- basemaps::basemap_raster(ext=clock_zones, map_service = "osm", map_type = "topographic")
+  bg_m <- mask(bg,cc_buff)
+  
+  ## plot eindhoven clock board
+  tm1 <- tm_shape(bg_m) + tm_rgb(col_alpha = 0.4)+ tm_shape(clock_zones) + tm_polygons("label", fill_alpha = 0, legend.show = F) +
+    tm_text("label", size = 3/4) + tm_layout(frame = FALSE)
+  
+  city_clocks[[c]] <- tm1
   
   # intersect the ind polygons based on the zones
   ext_poly <- ind_dep[clock_zones,]
   
+  ## plot eindhoven clock board
+  tm2 <- tm_shape(ext_poly) + tm_polygons("IMDDecil", fill_alpha = 1, legend.show = T) +
+    tm_layout(frame = FALSE)
+  city_polys[[c]] <- tm2
+  
   # get the extent of zones
   bb <- st_bbox(clock_zones)
-  
   # create raster
   r <- raster(nrows = 100, ncols = 100,xmn = bb[1], xmx = bb[3], ymn = bb[2], ymx = bb[4])
   # define crs
@@ -38,6 +60,12 @@ for (c in cities){
   
   # grid the imd data
   gridded <- terra::rasterize(ext_poly,r,field = "IMDDecil", fun = "mean")
+  
+  ## plot eindhoven clock board
+  tm3 <- tm_shape(gridded) + tm_raster() +tm_shape(clock_zones) + tm_polygons("label", fill_alpha = 0, legend.show = F) +
+    tm_layout(frame = FALSE)
+  tm3
+  city_grids[[c]] <- tm3
   
   # take the mean of all grid cells in each clock board zone and return as a df
   clock_ind <- exact_extract(gridded,clock_zones, fun = "mean", force_df = TRUE)
@@ -79,11 +107,27 @@ for (c in cities){
   
 }
 
+tm_clocks <- tmap_arrange(city_clocks[[1]], city_clocks[[4]], city_clocks[[2]], city_clocks[[3]])
+# balanced dpi with width and height so the text is readable but not overlapping
+tmap_save(tm_clocks,"plots/city_clocks.png", width = 5000, height = 4000, dpi = 320)
+
+tm_polys <- tmap_arrange(city_polys[[1]], city_polys[[4]], city_polys[[2]], city_polys[[3]])
+# balanced dpi with width and height so the text is readable but not overlapping
+tmap_save(tm_polys,"plots/city_polys.png", width = 5000, height = 4000, dpi = 320)
+
+tm_grids <- tmap_arrange(city_grids[[1]], city_grids[[4]], city_grids[[2]], city_grids[[3]])
+# balanced dpi with width and height so the text is readable but not overlapping
+tmap_save(tm_grids,"plots/city_grids.png", width = 5000, height = 4000, dpi = 320)
+
+tm_clocks <- tmap_arrange(city_clocks[[1]], city_clocks[[4]], city_clocks[[2]], city_clocks[[3]])
+# balanced dpi with width and height so the text is readable but not overlapping
+tmap_save(tm_clocks,"plots/city_clocks.png", width = 5000, height = 4000, dpi = 320)
+
 # arrange plots
-tm2 <- tmap_arrange(Manchester, Sheffield, Bristol, Oxford)
+tm_final <- tmap_arrange(Manchester, Sheffield, Bristol, Oxford)
 
 # balanced dpi with width and height so the text is readable but not overlapping
-tmap_save(tm2,"all_clocks.png", width = 5000, height = 4000, dpi = 320)
+tmap_save(tm_final,"plots/final_clocks.png", width = 5000, height = 4000, dpi = 320)
 
 # get the data for the cities to look for patterns
 all_clocks <- do.call(rbind,clocks)
