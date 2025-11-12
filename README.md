@@ -1,2 +1,24 @@
-# IMD
-regridding the Index of Multiple Deprevation
+# Index of Multiple Deprevation UK
+
+
+Analysis of the [IMD
+data](%22https://assets.publishing.service.gov.uk/media/68ff547a49d08dd781b48351/ID_2025_Research_Report.pdf%22)
+released a few weeks ago.
+
+Use the city centre location (obtained using
+tmaptools::geocode_osm(city_name)) to create a clockboard for each city
+using zonebuilder package.
+
+![](plots/city_clocks.png) Intersect with the polygons from the IMD data
+IMD_polys\[clockboard,\]
+
+![](plots/city_polys.png) Grid this data using terra::rasterize()
+
+![](plots/city_grids.png) Use exactextractr package to calculate the
+mean of each clockboard cell exact_extract(gridded_city,clockboard, fun
+= “mean”)
+
+No background map as this map is supposed to be minimal (day 11
+30daymapchallenge)
+
+![](plots/final_clocks.png)
