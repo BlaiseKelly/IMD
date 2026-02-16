@@ -8,7 +8,7 @@ library(tmaptools)
 library(dplyr)
 
 # download LSOA gpkg from https://communitiesopendata-communities.hub.arcgis.com/datasets/4da63019f25546aa92a922a5ea682950_0/explore?location=52.533125%2C-2.489482%2C7.17
-ind_dep <- st_read("dat/LSOA_IMD2025_WGS84_-4854136717238973930.gpkg") |> 
+ind_dep <- st_read("https://github.com/BlaiseKelly/IMD/releases/download/LSOA_IMD2025/LSOA_IMD2025_WGS84_-4854136717238973930.gpkg") |> 
   st_transform(4326)
 
 # pick out cities interested in
